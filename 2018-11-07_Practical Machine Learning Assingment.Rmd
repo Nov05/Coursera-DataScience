@@ -1,0 +1,221 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "Wenjing Liu"
+date: "November 7, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<br><br><br>
+
+## 1. Introduction
+
+### 1.1. Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+### 1.2. Data
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+### 1.3. Task
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+## 2. Data Analysis
+
+I went though the following steps to finish the task:
+
+1. Upload training data and store it in variable **training**, testing data in **testing**;
+2. Randomly divide training data into 2 parts: 75% as sub training data and store it in variable **train**, 25% as sub testing data and store it in **test**;
+3. Sample training data 3 times more and each time choose 25% as sub testing data;
+4. Run different models and test the accuracy with 4 sub testing data sets:
+
+* a. Random Forest with Principal Component Analysis
+* b. Random Forest without PCA
+* c. Classification and Regression Tree with PCA
+* d. Classification (default rpart())
+* e. Classification (rpart method="class")
+* f. Boosted Tree with PCA (Without PCA it would be extremely slow.)
+
+5. Compare the accuracy and time to choose a model:
+
+* Accuracy (high to low): b > a > f > e > d > c
+* Speed (high to low): c > d > e > a > b > f
+
+6. Random Forest has the most accuracy, and the speed is moderate. So I chose it to apply on the testing data.
+
+### 2.1 Data Uploading and Cleansing
+
+```{r message=FALSE, warning=FALSE}
+set.seed(55555)
+library(caret)
+library(AppliedPredictiveModeling)
+library(randomForest) ## for randomForest()
+library(rattle) ## for fancyRpartPlot()
+library(rpart) ## for rpart()
+library(rpart.plot) ## for rpart.plot()
+
+## Upload data
+training = read.csv("D:/R/data/pml-training.csv", 
+header = TRUE, 
+stringsAsFactors=FALSE, 
+na.strings=c("NA", "N/A"))
+dim(training) ## 19622 rows, 160 columns
+summary(training[,c(2:7, 160)]) ## There are 6 users, 5 classes.
+str(training) ## e.g. column "kurtosis_roll_belt", type chr, contains "NA"
+
+## Clean covariants
+df <- training[,-c(1:7, 160)] ## drop the first 7 and the last columns
+df <- suppressWarnings(data.frame(apply(df, 2, as.numeric))) ## convert all columns to numeric
+df[is.na(df)] <- 0; sum(is.na(df)) ## replace <NA> with 0
+df <- df[vapply(df, function(x) length(unique(x)) > 1, logical(1L))] ## remove same value columns
+dim(df) ## 19622 rows, 143 columns
+training <- data.frame(classe=training$classe, df); rm(df)
+training$classe <- as.factor(training$classe)
+```
+
+### 2.2 Data Partition
+
+```{r message=FALSE, warning=FALSE}
+## Data partition
+trainIndex = createDataPartition(training$classe, p = 3/4, list=FALSE)
+train = training[trainIndex,] 
+library(rlist)
+testIndices<- list(-trainIndex)
+for (i in 2:4) {
+testIndices <- list.append(testIndices, createDataPartition(training$classe, p = 1/4, list=FALSE))
+}
+```
+
+### 2.3 Train Models
+
+```{r message=FALSE, warning=FALSE}
+## Principal Component Analysis
+preProc <- preProcess(train[,-1], method=c("center", "scale", "pca"), thresh=0.8); preProc
+trainPC <- predict(preProc, train)
+
+########################################
+## Random Forest
+########################################
+## RF + PCA
+modFit <- randomForest(classe~., data=trainPC, method="class")
+
+## Cross validation
+accRF <- matrix(0, nrow=4, ncol=1)
+for (i in 1:4) {
+test = training[testIndices[[i]],]
+testPC <- predict(preProc, test)
+pred <- predict(modFit, testPC)
+accRF[i,1] <- confusionMatrix(test$classe, pred)$overall["Accuracy"]
+}; rm(modFit, test, testPC, pred)
+
+## RF without PCA
+accRF1 <- matrix(0, nrow=4, ncol=1)
+modFit <- randomForest(classe~., data=train, method="class")
+for (i in 1:4) {
+test = training[testIndices[[i]],]
+pred <- predict(modFit, test)
+accRF1[i,1] <- confusionMatrix(test$classe, pred)$overall["Accuracy"]
+}; rm(modFit, test, pred)
+
+########################################
+## Classification and Regression Trees
+########################################
+## rpart + PCA
+modFit <- train(classe~., data=trainPC, method="rpart")
+fancyRpartPlot(modFit$finalModel)
+accRP <- matrix(0, nrow=4, ncol=1)
+for (i in 1:4) {
+test = training[testIndices[[i]],]
+testPC <- predict(preProc, test)
+pred <- predict(modFit, testPC)
+accRP[i,1] <- confusionMatrix(test$classe, pred)$overall["Accuracy"]
+}; rm(modFit, test, testPC, pred)
+
+## rpart(default)
+modFit <- train(classe~., data=train, method="rpart")
+fancyRpartPlot(modFit$finalModel)
+accRP1 <- matrix(0, nrow=4, ncol=1)
+for (i in 1:4) {
+test = training[testIndices[[i]],]
+pred <- predict(modFit, test)
+accRP1[i,1] <- confusionMatrix(test$classe, pred)$overall["Accuracy"]
+}; rm(modFit, test, pred)
+
+## rpart(class)
+modFit <- rpart(classe~., data=train, method="class")
+fancyRpartPlot(modFit)
+accRP2 <- matrix(0, nrow=4, ncol=1)
+for (i in 1:4) {
+test = training[testIndices[[i]],]
+pred <- predict(modFit, test, type="class")
+accRP2[i,1] <- confusionMatrix(test$classe, pred)$overall["Accuracy"]
+}; rm(modFit, test, pred)
+
+
+###############################
+## Boosted Trees + PCA (extremely slow)
+###############################
+```
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+## Caution: Need to suppress output explicitly
+modFit <- train(classe~., method="gbm", data=trainPC) 
+```
+
+```{r message=FALSE, warning=FALSE}
+accGBM <- matrix(0, nrow=4, ncol=1)
+for (i in 1:4) {
+test = training[testIndices[[i]],]
+testPC <- predict(preProc, test)
+pred <- predict(modFit, testPC)
+accGBM[i,1] <- confusionMatrix(test$classe, pred)$overall["Accuracy"]
+}; rm(modFit, test, testPC, pred, i)
+```
+
+### 2.4 Compare Accuracy
+
+```{r message=FALSE, warning=FALSE}
+## Compare Accuracy
+acc <- data.frame(accRF, accRF1, accRP, accRP1, accRP2, accGBM)
+names(acc) <- c("RF+PCA", "RF", "rpart+PCA", "rpart(default)", "rpart(class)", "gbm+PCA"); acc
+colMeans(acc)
+```
+
+### 2.5 Predict
+
+```{r message=FALSE, warning=FALSE}
+rm(training, trainIndex, testIndices, trainPC, preProc)
+
+## Upload then clean testing data
+testing = read.csv("D:/R/data/pml-testing.csv", 
+header = TRUE, 
+stringsAsFactors=FALSE, 
+na.strings=c("NA", "N/A"))
+dim(testing) ## 20 rows, 160 columns
+tail(names(testing)) ## The last column is "problem_id".
+df <- testing[,-c(1:7, 160)] ## drop the first 7 and the last columns
+df <- suppressWarnings(data.frame(apply(df, 2, as.numeric))) ## convert all columns to numeric
+df[is.na(df)] <- 0; ## replace <NA> with 0
+testing <- data.frame(classe="", df); rm(df)
+
+## Predict
+modFit <- randomForest(classe~. , data=train, method="class")
+pred <- predict(modFit, testing); pred
+```
+
+
+
+
