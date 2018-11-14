@@ -1,4 +1,6 @@
-# R-Getting-and-Cleaning-Data
+# Coursera Data Science - 03 Getting and Cleaning Data
+
+https://www.coursera.org/learn/data-cleaning/home/welcome
 
 Repository for Coursera "Getting and Cleaning Data" final assignment
 
