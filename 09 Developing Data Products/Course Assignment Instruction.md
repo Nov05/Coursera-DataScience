@@ -45,3 +45,26 @@ http://slidify.org/publish.html
 Rstudio presenter has a button to publish directly to Rpubs https://support.rstudio.com/hc/en-us/articles/200714023-Displaying-and-Distributing-Presentations. If you are using Rpubs, put in the link to the presentation into the submission box as a http:// link not a https:// link.
 
 You can also publish using both formats to github manually using gh-pages, though your github branch must have a .nojekyll fle and be on a branch names gh-pages. There's more on gh-pages here https://pages.github.com/ and there is a video lecture outlining how to do this.
+
+# Review criteria
+
+## Your Shiny Application
+
+1. Was there enough documentation on the shiny site for a user to get started using the application?
+2. Did the application run as described in the documentation?
+3. Was there some form of widget input (slider, textbox, radio buttons, checkbox, ...) in either ui.R or a custom web page?
+4. Did server.R perform some calculations on the input in server.R?
+5. Was the server calculation displayed in the html page?
+6. Was the app substantively different than the very simple applications built in the class? Note, it's OK if the app is simple and based on the one presented in class. I just don't want it to be basically a carbon copy of the examples we covered. For example, if someone simply changed the variable names, then this would not count. However, a prediction algorithm that had a similar layout would be fine.
+7. Here's your opportunity to give the app +1 for being well done, or neat, or even just a solid effort.
+
+## Your Reproducible Pitch
+
+1. Was the presentation completed in slidify or R Presenter?
+2. Was it 5 pages?
+3. Did it contain an R expression that got evaluated and displayed?
+4. Did it contain an R expression that got evaluated and displayed?
+5. Was it hosted on github or Rpubs?
+6. Was the server calculation displayed in the html page?
+7. Here's your opportunity to give this presentation a +1 for being well done. Did they tinker around with the default style? Was the presentation particularly lucid and well organized? In other words, the student made a legitimate try.
+8. There were no R errors displayed in the presentation.
