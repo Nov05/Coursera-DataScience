@@ -2,7 +2,7 @@
 library(maps)
 library(mapproj)
 source("helpers.R")
-counties <- readRDS("D:/R/data/counties.rds")
+counties <- readRDS("counties.rds")
 
 # User interface ----
 ui <- fluidPage(
